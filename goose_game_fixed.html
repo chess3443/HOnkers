@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Untitled Goose Game 3D - Chaos Edition</title>
+  
+  <!-- Core React -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  
+  <!-- Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  
+  <!-- Zustand -->
+  <script src="https://unpkg.com/zustand@4.4.1/esm/index.js" type="module"></script>
+  
+  <!-- React Three Fiber and Drei (correct CDN) -->
+  <script src="https://unpkg.com/@react-three/fiber@8.15.11/dist/index.umd.js"></script>
+  <script src="https://unpkg.com/@react-three/drei@9.88.13/dist/index.umd.js"></script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, sans-serif;
+      background: #000;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    
+    #root {
+      width: 100%;
+      height: 100%;
+      position: fixed;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+      touch-action: none;
+    }
+
+    .game-ui {
+      position: fixed;
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    .game-ui > * {
+      pointer-events: auto;
+    }
+
+    .ui-card {
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      border: 1px solid #666;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .ui-button {
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+    }
+
+    .ui-button:hover {
+      background: #3730a3;
+    }
+
+    .ui-button:disabled {
+      background: #6b7280;
+      cursor: not-allowed;
+    }
+
+    .start-screen {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .start-card {
+      background: white;
+      color: black;
+      border-radius: 12px;
+      padding: 32px;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .mission-card {
+      top: 16px;
+      left: 16px;
+      max-width: 350px;
+    }
+
+    .controls-card {
+      top: 16px;
+      right: 16px;
+    }
+
+    .inventory-card {
+      bottom: 16px;
+      left: 16px;
+    }
+
+    .status-card {
+      bottom: 16px;
+      right: 16px;
+    }
+
+    .inventory-items {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .inventory-item {
+      font-size: 24px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .confetti {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 40;
+    }
+
+    .victory-message {
+      position: fixed;
+      top: 25%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 50;
+      text-align: center;
+      color: white;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    .victory-title {
+      font-size: 4rem;
+      font-weight: bold;
+      color: #ffd700;
+      animation: bounce 1s infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes bounce {
+      0%, 20%, 53%, 80%, 100% {
+        transform: translate3d(0,0,0);
+      }
+      40%, 43% {
+        transform: translate3d(0,-30px,0);
+      }
+      70% {
+        transform: translate3d(0,-15px,0);
+      }
+      90% {
+        transform: translate3d(0,-4px,0);
+      }
+    }
+
+    @keyframes fall {
+      0% {
+        transform: translateY(-100vh) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) rotate(360deg);
+        opacity: 0;
+      }
+    }
+
+    .minigame-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .minigame-card {
+      background: white;
+      color: black;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .guess-container {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 16px 0;
+    }
+
+    .guess-number {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 2px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .guess-controls {
+      display: flex;
+      margin-top: 4px;
+    }
+
+    .guess-btn {
+      background: #e5e5e5;
+      border: none;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .feedback-list {
+      max-height: 160px;
+      overflow-y: auto;
+      margin: 16px 0;
+    }
+
+    .feedback-item {
+      background: #f5f5f5;
+      padding: 8px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .feedback-correct {
+      color: #10b981;
+    }
+
+    .feedback-wrong {
+      color: #f59e0b;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+    // Create a simple zustand-like store
+    function createStore(storeFunction) {
+      let state = {};
+      const listeners = new Set();
+      
+      const setState = (partial) => {
+        const nextState = typeof partial === 'function' ? partial(state) : partial;
+        state = { ...state, ...nextState };
+        listeners.forEach(listener => listener(state));
+      };
+
+      const getState = () => state;
+      
+      const subscribe = (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      };
+
+      const api = { setState, getState, subscribe };
+      state = storeFunction(setState, getState, api);
+      
+      return api;
+    }
+
+    // Game Store
+    const gameStore = createStore((set, get) => ({
+      phase: 'ready',
+      player: {
+        position: new THREE.Vector3(0, 1, 0),
+        inBuilding: null,
+      },
+      missions: [
+        "Go to the Office building and put hot sauce in the coffee ☕",
+        "Go to the School and make a mess 📚",
+        "Go to someone's House and lock them in 🏠",
+        "Go to the Market place and get on TV 📺",
+        "Go to the Restaurant and steal a butter knife 🍽️",
+        "Go to the Town Hall and Rick Roll people by putting the CD in the speaker 🎵"
+      ],
+      completedMissions: 0,
+      unlockedBuildings: new Set(['School', 'Restaurant']),
+      currentMinigame: null,
+      inventory: [],
+      targetPosition: null,
+      isMuted: false,
+
+      // Actions
+      startGame: () => set({ phase: 'playing' }),
+      restartGame: () => set({
+        phase: 'ready',
+        player: { position: new THREE.Vector3(0, 1, 0), inBuilding: null },
+        completedMissions: 0,
+        unlockedBuildings: new Set(['School', 'Restaurant']),
+        currentMinigame: null,
+        inventory: [],
+        targetPosition: null,
+      }),
+      
+      setPlayerPosition: (position) => set((state) => ({
+        player: { ...state.player, position }
+      })),
+
+      completeCurrentMission: () => set((state) => {
+        const newCompleted = state.completedMissions + 1;
+        const newPhase = newCompleted >= state.missions.length ? 'victory' : 'playing';
+        
+        if (newPhase === 'victory') {
+          setTimeout(() => set({ phase: 'freeRoam' }), 5000);
+        }
+        
+        return {
+          completedMissions: newCompleted,
+          phase: newPhase
+        };
+      }),
+
+      addInventoryItem: (item) => set((state) => {
+        if (state.inventory.includes(item)) return state;
+        return { inventory: [...state.inventory, item] };
+      }),
+
+      startMinigame: (building) => set({ currentMinigame: building }),
+      endMinigame: () => set({ currentMinigame: null }),
+      
+      unlockBuilding: (building) => set((state) => {
+        const newUnlocked = new Set(state.unlockedBuildings);
+        newUnlocked.add(building);
+        return { unlockedBuildings: newUnlocked };
+      }),
+
+      enterBuilding: (building) => set((state) => ({
+        phase: 'interior',
+        player: { ...state.player, inBuilding: building }
+      })),
+
+      exitBuilding: () => set((state) => ({
+        phase: state.completedMissions >= state.missions.length ? 'freeRoam' : 'playing',
+        player: { ...state.player, inBuilding: null }
+      })),
+
+      toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
+
+      triggerMissionEvent: (building) => set((state) => {
+        let newCompleted = state.completedMissions;
+        let newPhase = state.phase;
+        
+        const currentMission = state.missions[state.completedMissions];
+        const missionMap = {
+          'Office': 'coffee',
+          'School': 'mess',
+          'House': 'lock',
+          'Market': 'TV',
+          'Restaurant': 'knife',
+          'TownHall': 'Rick Roll'
+        };
+        
+        if (currentMission && currentMission.toLowerCase().includes(missionMap[building]?.toLowerCase())) {
+          newCompleted++;
+          if (newCompleted >= state.missions.length) {
+            newPhase = 'victory';
+            setTimeout(() => set({ phase: 'freeRoam' }), 5000);
+          }
+        }
+        
+        return {
+          completedMissions: newCompleted,
+          phase: newPhase
+        };
+      })
+    }));
+
+    // Hook to use store in React components
+    function useGameStore() {
+      const [state, setState] = React.useState(gameStore.getState());
+      
+      React.useEffect(() => {
+        const unsubscribe = gameStore.subscribe(setState);
+        return unsubscribe;
+      }, []);
+      
+      return { ...state, ...gameStore.getState() };
+    }
+
+    // Player Component
+    function Player() {
+      const { player, setPlayerPosition, phase, addInventoryItem, inventory } = useGameStore();
+      const playerRef = React.useRef();
+      const [keys, setKeys] = React.useState({});
+      const [lastHonk, setLastHonk] = React.useState(0);
+
+      React.useEffect(() => {
+        const handleKeyDown = (e) => setKeys(prev => ({ ...prev, [e.code]: true }));
+        const handleKeyUp = (e) => setKeys(prev => ({ ...prev, [e.code]: false }));
+        
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        
+        return () => {
+          window.removeEventListener('keydown', handleKeyDown);
+          window.removeEventListener('keyup', handleKeyUp);
+        };
+      }, []);
+
+      ReactThreeFiber.useFrame((state, delta) => {
+        if (phase !== 'playing' && phase !== 'freeRoam') return;
+        if (!playerRef.current) return;
+
+        const moveSpeed = keys.ShiftLeft ? 8 : 4;
+        const moveVector = new THREE.Vector3();
+
+        if (keys.KeyW || keys.ArrowUp) moveVector.z -= 1;
+        if (keys.KeyS || keys.ArrowDown) moveVector.z += 1;
+        if (keys.KeyA || keys.ArrowLeft) moveVector.x -= 1;
+        if (keys.KeyD || keys.ArrowRight) moveVector.x += 1;
+
+        if (keys.Space && Date.now() - lastHonk > 500) {
+          setLastHonk(Date.now());
+        }
+
+        if (moveVector.length() > 0) {
+          moveVector.normalize();
+          const newPosition = player.position.clone();
+          newPosition.add(moveVector.multiplyScalar(moveSpeed * delta));
+          newPosition.y = 1;
+          
+          playerRef.current.position.copy(newPosition);
+          setPlayerPosition(newPosition);
+        }
+
+        // Update camera to follow player
+        const idealPosition = player.position.clone().add(new THREE.Vector3(0, 8, 8));
+        state.camera.position.lerp(idealPosition, delta * 2);
+        state.camera.lookAt(player.position);
+
+        // Check for item collection
+        const itemPositions = {
+          hotsauce: new THREE.Vector3(25, 0.5, -25),
+          papers: new THREE.Vector3(-30, 0.5, 20),
+          key: new THREE.Vector3(-20, 0.5, -20),
+          camera: new THREE.Vector3(30, 0.5, 30),
+          knife: new THREE.Vector3(15, 0.5, -22),
+          cd: new THREE.Vector3(20, 0.5, 25)
+        };
+
+        Object.entries(itemPositions).forEach(([item, pos]) => {
+          if (player.position.distanceTo(pos) < 2 && !inventory.includes(item)) {
+            addInventoryItem(item);
+          }
+        });
+      });
+
+      if (phase === 'interior') return null;
+
+      return React.createElement('mesh', {
+        ref: playerRef,
+        position: [player.position.x, player.position.y, player.position.z],
+        castShadow: true
+      }, 
+        React.createElement('group', {},
+          // Main body
+          React.createElement('mesh', { position: [0, 0, 0], castShadow: true },
+            React.createElement('sphereGeometry', { args: [0.8, 16, 16] }),
+            React.createElement('meshStandardMaterial', { color: '#f8f8ff' })
+          ),
+          // Head
+          React.createElement('mesh', { position: [0, 0.5, -1], castShadow: true },
+            React.createElement('sphereGeometry', { args: [0.5, 16, 16] }),
+            React.createElement('meshStandardMaterial', { color: '#f8f8ff' })
+          ),
+          // Beak
+          React.createElement('mesh', { position: [0, 0.3, -1.5], castShadow: true },
+            React.createElement('coneGeometry', { args: [0.15, 0.4, 8] }),
+            React.createElement('meshStandardMaterial', { color: '#ff8c00' })
+          ),
+          // Eyes
+          React.createElement('mesh', { position: [-0.2, 0.6, -1.3] },
+            React.createElement('sphereGeometry', { args: [0.12, 8, 8] }),
+            React.createElement('meshStandardMaterial', { color: '#000000' })
+          ),
+          React.createElement('mesh', { position: [0.2, 0.6, -1.3] },
+            React.createElement('sphereGeometry', { args: [0.12, 8, 8] }),
+            React.createElement('meshStandardMaterial', { color: '#000000' })
+          ),
+          // Wings
+          React.createElement('mesh', { position: [-0.7, 0, 0], rotation: [0, 0, -0.3], castShadow: true },
+            React.createElement('sphereGeometry', { args: [0.4, 8, 16] }),
+            React.createElement('meshStandardMaterial', { color: '#f0f0f0' })
+          ),
+          React.createElement('mesh', { position: [0.7, 0, 0], rotation: [0, 0, 0.3], castShadow: true },
+            React.createElement('sphereGeometry', { args: [0.4, 8, 16] }),
+            React.createElement('meshStandardMaterial', { color: '#f0f0f0' })
+          ),
+          // Feet
+          React.createElement('mesh', { position: [-0.3, -0.8, -0.2], castShadow: true },
+            React.createElement('sphereGeometry', { args: [0.15, 8, 8] }),
+            React.createElement('meshStandardMaterial', { color: '#ff8c00' })
+          ),
+          React.createElement('mesh', { position: [0.3, -0.8, -0.2], castShadow: true },
+            React.createElement('sphereGeometry', { args: [0.15, 8, 8] }),
+            React.createElement('meshStandardMaterial', { color: '#ff8c00' })
+          ),
+          
+          // Pineapple hat in free roam
+          phase === 'freeRoam' && React.createElement('group', { position: [0, 1, -0.5] },
+            React.createElement('mesh', {},
+              React.createElement('cylinderGeometry', { args: [0.3, 0.4, 0.8, 8] }),
+              React.createElement('meshStandardMaterial', { color: '#DAA520' })
+            ),
+            ...[...Array(8)].map((_, i) =>
+              React.createElement('mesh', {
+                key: i,
+                position: [
+                  Math.cos(i * Math.PI / 4) * 0.2,
+                  0.6,
+                  Math.sin(i * Math.PI / 4) * 0.2
+                ],
+                rotation: [0, i * Math.PI / 4, 0]
+              },
+                React.createElement('coneGeometry', { args: [0.05, 0.4, 4] }),
+                React.createElement('meshStandardMaterial', { color: '#228B22' })
+              )
+            )
+          )
+        )
+      );
+    }
+
+    // Building Component
+    function Building({ position, size, color, name, isUnlocked = true }) {
+      const [hovered, setHovered] = React.useState(false);
+      const { startMinigame, enterBuilding, unlockBuilding, triggerMissionEvent } = useGameStore();
+
+      const handleClick = (e) => {
+        e.stopPropagation();
+        if (isUnlocked) {
+          enterBuilding(name);
+          triggerMissionEvent(name);
+        } else {
+          startMinigame(name);
+        }
+      };
+
+      return React.createElement('group', {},
+        React.createElement('mesh', {
+          position: position,
+          castShadow: true,
+          receiveShadow: true,
+          onPointerOver: () => setHovered(true),
+          onPointerOut: () => setHovered(false),
+          onClick: handleClick
+        },
+          React.createElement('boxGeometry', { args: size }),
+          React.createElement('meshStandardMaterial', { 
+            color: hovered ? (isUnlocked ? '#ffff88' : '#ff8888') : color
+          })
+        )
+      );
+    }
+
+    // World Component
+    function World() {
+      return React.createElement('group', {},
+        // Ground
+        React.createElement('mesh', {
+          receiveShadow: true,
+          position: [0, 0, 0],
+          rotation: [-Math.PI / 2, 0, 0]
+        },
+          React.createElement('planeGeometry', { args: [200, 200] }),
+          React.createElement('meshStandardMaterial', { color: '#4a7c59' })
+        ),
+        // Fountain
+        React.createElement('group', { position: [0, 0, 0] },
+          React.createElement('mesh', { position: [0, 0.5, 0], castShadow: true, receiveShadow: true },
+            React.createElement('cylinderGeometry', { args: [3, 3, 1, 16] }),
+            React.createElement('meshStandardMaterial', { color: '#87CEEB' })
+          ),
+          React.createElement('mesh', { position: [0, 1.5, 0], castShadow: true },
+            React.createElement('cylinderGeometry', { args: [0.5, 0.8, 2, 8] }),
+            React.createElement('meshStandardMaterial', { color: '#696969' })
+          )
+        ),
+        // Items
+        React.createElement(Items)
+      );
+    }
+
+    // Items Component
+    function Items() {
+      const { inventory } = useGameStore();
+
+      const items = [
+        { name: 'hotsauce', position: [25, 0.5, -25], color: '#ff0000' },
+        { name: 'papers', position: [-30, 0.5, 20], color: '#ffffff' },
+        { name: 'key', position: [-20, 0.5, -20], color: '#ffd700' },
+        { name: 'camera', position: [30, 0.5, 30], color: '#000000' },
+        { name: 'knife', position: [15, 0.5, -22], color: '#c0c0c0' },
+        { name: 'cd', position: [20, 0.5, 25], color: '#800080' }
+      ];
+
+      return React.createElement('group', {},
+        ...items.map(item => 
+          !inventory.includes(item.name) && React.createElement('mesh', {
+            key: item.name,
+            position: item.position,
+            castShadow: true
+          },
+            React.createElement('sphereGeometry', { args: [0.3] }),
+            React.createElement('meshStandardMaterial', { color: item.color })
+          )
+        )
+      );
+    }
+
+    // Buildings Component
+    function Buildings() {
+      const { unlockedBuildings, phase, player, exitBuilding } = useGameStore();
+
+      if (phase === 'interior') {
+        return React.createElement(InteriorView, { 
+          buildingName: player.inBuilding, 
+          onExit: exitBuilding 
+        });
+      }
+
+      return React.createElement('group', {},
+        React.createElement(Building, {
+          position: [25, 6, -25],
+          size: [8, 12, 8],
+          color: '#4ECDC4',
+          name: 'Office',
+          isUnlocked: unlockedBuildings.has('Office')
+        }),
+        React.createElement(Building, {
+          position: [-30, 5, 20],
+          size: [12, 10, 8],
+          color: '#95E1D3',
+          name: 'School',
+          isUnlocked: unlockedBuildings.has('School')
+        }),
+        React.createElement(Building, {
+          position: [-20, 4, -20],
+          size: [8, 8, 6],
+          color: '#FF6B6B',
+          name: 'House',
+          isUnlocked: unlockedBuildings.has('House')
+        }),
+        React.createElement(Building, {
+          position: [30, 4, 30],
+          size: [10, 8, 8],
+          color: '#DDA0DD',
+          name: 'Market',
+          isUnlocked: unlockedBuildings.has('Market')
+        }),
+        React.createElement(Building, {
+          position: [15, 4, -22],
+          size: [10, 8, 6],
+          color: '#FFEAA7',
+          name: 'Restaurant',
+          isUnlocked: unlockedBuildings.has('Restaurant')
+        }),
+        React.createElement(Building, {
+          position: [20, 8, 25],
+          size: [10, 16, 10],
+          color: '#F38BA8',
+          name: 'TownHall',
+          isUnlocked: unlockedBuildings.has('TownHall')
+        })
+      );
+    }
+
+    // Interior View Component
+    function InteriorView({ buildingName, onExit }) {
+      ReactThreeFiber.useFrame(({ camera }) => {
+        camera.position.set(0, 5, 10);
+        camera.lookAt(0, 0, 0);
+      });
+
+      return React.createElement('group', {},
+        React.createElement('ambientLight', { intensity: 0.6 }),
+        React.createElement('pointLight', { position: [0, 5, 0], intensity: 0.8 }),
+        
+        React.createElement('mesh', { position: [0, -0.1, 0], receiveShadow: true },
+          React.createElement('boxGeometry', { args: [12, 0.2, 12] }),
+          React.createElement('meshStandardMaterial', { color: '#F5F5DC' })
+        ),
+        
+        React.createElement('mesh', { 
+          position: [0, 2, 5.8],
+          castShadow: true,
+          onClick: onExit
+        },
+          React.createElement('boxGeometry', { args: [1.5, 4, 0.3] }),
+          React.createElement('meshStandardMaterial', { color: '#8B4513' })
+        )
+      );
+    }
+
+    // Mini Game Component
+    function MiniGame() {
+      const { currentMinigame, endMinigame, unlockBuilding } = useGameStore();
+      const [gameState, setGameState] = React.useState({
+        code: [0, 0, 0, 0],
+        guess: [1, 1, 1, 1],
+        feedback: [],
+        attempts: 0,
+        maxAttempts: 10,
+        won: false,
+      });
+
+      React.useEffect(() => {
+        if (currentMinigame) {
+          setGameState({
+            code: Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1),
+            guess: [1, 1, 1, 1],
+            feedback: [],
+            attempts: 0,
+            maxAttempts: 10,
+            won: false,
+          });
+        }
+      }, [currentMinigame]);
+
+      const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+
+      const checkGuess = () => {
+        const { code, guess } = gameState;
+        
+        let correct = 0;
+        let wrongPosition = 0;
+        const codeUsed = new Array(4).fill(false);
+        const guessUsed = new Array(4).fill(false);
+        
+        for (let i = 0; i < 4; i++) {
+          if (code[i] === guess[i]) {
+            correct++;
+            codeUsed[i] = true;
+            guessUsed[i] = true;
+          }
+        }
+        
+        for (let i = 0; i < 4; i++) {
+          if (!guessUsed[i]) {
+            for (let j = 0; j < 4; j++) {
+              if (!codeUsed[j] && code[j] === guess[i]) {
+                wrongPosition++;
+                codeUsed[j] = true;
+                break;
+              }
+            }
+          }
+        }
+        
+        const newFeedback = [...gameState.feedback, { correct, wrongPosition }];
+        const won = correct === 4;
+        const attempts = gameState.attempts + 1;
+        
+        if (won) {
+          unlockBuilding(currentMinigame);
+          setTimeout(() => endMinigame(), 2000);
+        } else if (attempts >= gameState.maxAttempts) {
+          setTimeout(() => endMinigame(), 2000);
+        }
+        
+        setGameState({
+          ...gameState,
+          feedback: newFeedback,
+          attempts,
+          won,
+        });
+      };
+
+      const updateGuess = (index, value) => {
+        const newGuess = [...gameState.guess];
+        newGuess[index] = value;
+        setGameState({ ...gameState, guess: newGuess });
+      };
+
+      if (!currentMinigame) return null;
+
+      return React.createElement('div', { className: 'minigame-overlay' },
+        React.createElement('div', { className: 'minigame-card' },
+          React.createElement('h2', {}, `Unlock ${currentMinigame}`),
+          React.createElement('p', {}, 'Crack the 4-digit code! Numbers 1-6, colors represent different numbers.'),
+          
+          React.createElement('div', { className: 'guess-container' },
+            ...gameState.guess.map((value, index) =>
+              React.createElement('div', { key: index },
+                React.createElement('div', { 
+                  className: 'guess-number',
+                  style: { backgroundColor: colors[value - 1] }
+                }, value),
+                React.createElement('div', { className: 'guess-controls' },
+                  React.createElement('button', {
+                    className: 'guess-btn',
+                    onClick: () => updateGuess(index, Math.max(1, value - 1)),
+                    disabled: gameState.won || gameState.attempts >= gameState.maxAttempts
+                  }, '-'),
+                  React.createElement('button', {
+                    className: 'guess-btn',
+                    onClick: () => updateGuess(index, Math.min(6, value + 1)),
+                    disabled: gameState.won || gameState.attempts >= gameState.maxAttempts
+                  }, '+')
+                )
+              )
+            )
+          ),
+
+          React.createElement('button', {
+            className: 'ui-button',
+            onClick: checkGuess,
+            disabled: gameState.won || gameState.attempts >= gameState.maxAttempts,
+            style: { width: '100%', marginBottom: '16px' }
+          }, 'Submit Guess'),
+
+          React.createElement('div', { className: 'feedback-list' },
+            ...gameState.feedback.map((feedback, index) =>
+              React.createElement('div', { key: index, className: 'feedback-item' },
+                React.createElement('span', {}, `Attempt ${index + 1}:`),
+                React.createElement('span', { className: 'feedback-correct' }, `✓ ${feedback.correct}`),
+                React.createElement('span', { className: 'feedback-wrong' }, `○ ${feedback.wrongPosition}`)
+              )
+            )
+          ),
+
+          gameState.won && React.createElement('div', {
+            style: { textAlign: 'center', color: '#10b981', fontWeight: 'bold' }
+          }, '🎉 Building Unlocked! 🎉'),
+          
+          gameState.attempts >= gameState.maxAttempts && !gameState.won && React.createElement('div', {
+            style: { textAlign: 'center', color: '#ef4444', fontWeight: 'bold' }
+          }, 'Game Over! Try again later.'),
+
+          React.createElement('div', {
+            style: { textAlign: 'center', fontSize: '14px', color: '#666', marginBottom: '16px' }
+          }, `Attempts: ${gameState.attempts}/${gameState.maxAttempts}`),
+
+          React.createElement('button', {
+            className: 'ui-button',
+            onClick: endMinigame,
+            style: { width: '100%' }
+          }, 'Close')
+        )
+      );
+    }
+
+    // Victory Dance Component
+    function VictoryDance() {
+      const { player } = useGameStore();
+      const danceRef = React.useRef();
+      const time = React.useRef(0);
+
+      ReactThreeFiber.useFrame((state, delta) => {
+        time.current += delta;
+        
+        if (danceRef.current) {
+          danceRef.current.rotation.y = Math.sin(time.current * 4) * 0.5;
+          danceRef.current.position.y = player.position.y + Math.sin(time.current * 8) * 0.5;
+          danceRef.current.scale.setScalar(1 + Math.sin(time.current * 6) * 0.1);
+        }
+      });
+
+      return React.createElement(React.Fragment, {},
+        React.createElement('div', { className: 'confetti' },
+          React.createElement('div', {
+            style: {
+              position: 'absolute',
+              top: '20%',
+              left: '50%',
+              width: '4px',
+              height: '20px',
+              background: '#ff0000',
+              animation: 'fall 3s linear infinite'
+            }
+          })
+        ),
+
+        React.createElement('div', { className: 'victory-message' },
+          React.createElement('h1', { className: 'victory-title' }, '🎉 VICTORY! 🎉'),
+          React.createElement('p', { style: { fontSize: '2rem' } }, 'You completed all missions!'),
+          React.createElement('p', { style: { fontSize: '1.2rem', marginTop: '8px' } }, 'Welcome to Free Roam Mode!')
+        ),
+
+        React.createElement('group', { 
+          ref: danceRef, 
+          position: [player.position.x, player.position.y, player.position.z] 
+        },
+          React.createElement('spotLight', {
+            position: [0, 10, 0],
+            angle: 0.3,
+            penumbra: 0.2,
+            intensity: 2,
+            color: '#ffff00'
+          }),
+          
+          ...[...Array(10)].map((_, i) =>
+            React.createElement('mesh', {
+              key: i,
+              position: [
+                Math.cos(time.current * 2 + i) * 3,
+                2 + Math.sin(time.current * 3 + i) * 2,
+                Math.sin(time.current * 2 + i) * 3
+              ]
+            },
+              React.createElement('sphereGeometry', { args: [0.1] }),
+              React.createElement('meshStandardMaterial', { 
+                color: '#ffff00', 
+                emissive: '#ffff00', 
+                emissiveIntensity: 0.8 
+              })
+            )
+          )
+        )
+      );
+    }
+
+    // Game UI Component
+    function GameUI() {
+      const { 
+        phase, 
+        missions, 
+        completedMissions, 
+        inventory, 
+        startGame,
+        restartGame,
+        toggleMute,
+        isMuted
+      } = useGameStore();
+
+      const currentMission = missions[completedMissions] || null;
+      const inventoryEmojis = {
+        hotsauce: '🌶️',
+        papers: '📄',
+        key: '🔑',
+        camera: '📷',
+        knife: '🔪',
+        cd: '💿'
+      };
+
+      if (phase === 'ready') {
+        return React.createElement('div', { className: 'start-screen' },
+          React.createElement('div', { className: 'start-card' },
+            React.createElement('h1', { style: { fontSize: '2rem', marginBottom: '16px' } }, '🦢 Untitled Goose Game 3D'),
+            React.createElement('p', { style: { fontSize: '1.2rem', marginBottom: '8px' } }, 'Chaos Edition'),
+            React.createElement('p', { style: { marginBottom: '24px' } }, 'Welcome to the 3D world! Control the goose and complete chaotic missions.'),
+            
+            React.createElement('div', { style: { fontSize: '14px', color: '#666', marginBottom: '24px' } },
+              React.createElement('p', {}, '🎮 WASD / Arrow Keys: Move'),
+              React.createElement('p', {}, '⚡ Shift: Run'),
+              React.createElement('p', {}, '📢 Space: Honk'),
+              React.createElement('p', {}, '🏢 Click buildings to enter/unlock')
+            ),
+            
+            React.createElement('button', {
+              className: 'ui-button',
+              onClick: startGame,
+              style: { fontSize: '1.2rem', padding: '12px 24px' }
+            }, 'Start Chaos')
+          )
+        );
+      }
+
+      if (phase === 'interior') {
+        return React.createElement('div', { className: 'game-ui mission-card' },
+          React.createElement('div', { className: 'ui-card' },
+            React.createElement('p', { style: { fontSize: '1.2rem' } }, 'Inside Building'),
+            React.createElement('p', { style: { fontSize: '14px', color: '#ccc' } }, 'Mission completed! Press ESC or click door to exit')
+          )
+        );
+      }
+
+      return React.createElement(React.Fragment, {},
+        // Controls
+        React.createElement('div', { className: 'game-ui controls-card' },
+          React.createElement('div', { className: 'ui-card' },
+            React.createElement('button', {
+              className: 'ui-button',
+              onClick: toggleMute,
+              style: { marginRight: '8px' }
+            }, isMuted ? '🔇' : '🔊'),
+            React.createElement('button', {
+              className: 'ui-button',
+              onClick: restartGame
+            }, '🔄')
+          )
+        ),
+
+        // Mission display
+        currentMission && phase === 'playing' && React.createElement('div', { className: 'game-ui mission-card' },
+          React.createElement('div', { className: 'ui-card' },
+            React.createElement('h3', {}, `Mission ${completedMissions + 1}`),
+            React.createElement('p', { style: { fontSize: '14px' } }, currentMission),
+            React.createElement('div', { style: { fontSize: '12px', color: '#ccc', marginTop: '8px' } },
+              `Progress: ${completedMissions}/${missions.length}`
+            )
+          )
+        ),
+
+        // Inventory display
+        inventory.length > 0 && React.createElement('div', { className: 'game-ui inventory-card' },
+          React.createElement('div', { className: 'ui-card' },
+            React.createElement('h3', {}, 'Inventory'),
+            React.createElement('div', { className: 'inventory-items' },
+              ...inventory.map((item, index) =>
+                React.createElement('div', { key: index, className: 'inventory-item' },
+                  inventoryEmojis[item] || item
+                )
+              )
+            )
+          )
+        ),
+
+        // Free roam mode indicator
+        phase === 'freeRoam' && React.createElement('div', { className: 'game-ui status-card' },
+          React.createElement('div', { 
+            className: 'ui-card',
+            style: { background: 'rgba(34, 197, 94, 0.9)' }
+          },
+            React.createElement('p', { style: { fontSize: '1.2rem', fontWeight: 'bold' } }, '🎉 Free Roam Mode!'),
+            React.createElement('p', { style: { fontSize: '14px' } }, 'All missions complete - explore freely!')
+          )
+        )
+      );
+    }
+
+    // Main Game Component
+    function Game() {
+      const { phase } = useGameStore();
+
+      return React.createElement(React.Fragment, {},
+        React.createElement(ReactThreeFiber.Canvas, {
+          shadows: true,
+          camera: { position: [0, 10, 10], fov: 50 },
+          gl: { antialias: true }
+        },
+          React.createElement(React.Suspense, { fallback: null },
+            React.createElement('ambientLight', { intensity: 0.3 }),
+            React.createElement('directionalLight', {
+              position: [100, 100, 50],
+              intensity: 1,
+              castShadow: true,
+              'shadow-mapSize': [2048, 2048],
+              'shadow-camera-far': 200,
+              'shadow-camera-left': -50,
+              'shadow-camera-right': 50,
+              'shadow-camera-top': 50,
+              'shadow-camera-bottom': -50
+            }),
+
+            React.createElement(World),
+            React.createElement(Player),
+            React.createElement(Buildings),
+            
+            phase === 'victory' && React.createElement(VictoryDance)
+          )
+        ),
+
+        React.createElement(GameUI),
+        React.createElement(MiniGame)
+      );
+    }
+
+    // App Component
+    function App() {
+      React.useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.code === 'Escape') {
+            const state = gameStore.getState();
+            if (state.phase === 'interior') {
+              state.exitBuilding();
+            }
+          }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, []);
+
+      return React.createElement(Game);
+    }
+
+    // Wait for all libraries to load
+    function initGame() {
+      if (typeof React === 'undefined' || 
+          typeof ReactDOM === 'undefined' || 
+          typeof THREE === 'undefined' || 
+          typeof ReactThreeFiber === 'undefined') {
+        setTimeout(initGame, 100);
+        return;
+      }
+      
+      // Render the app
+      ReactDOM.render(React.createElement(App), document.getElementById('root'));
+    }
+
+    // Start the game once everything is loaded
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initGame);
+    } else {
+      initGame();
+    }
+  </script>
+</body>
+</html>
